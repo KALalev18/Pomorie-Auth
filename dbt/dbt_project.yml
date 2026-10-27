@@ -17,6 +17,9 @@ vars:
 
 models:
   pomorie:
+    +meta:
+      dagster:
+        group: warehouse  # Dagster asset group for every dbt model
     staging:
       +schema: analytics_staging
       +materialized: view
