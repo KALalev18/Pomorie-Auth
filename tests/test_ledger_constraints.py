@@ -75,7 +75,7 @@ def test_one_accrual_per_fine(conn: psycopg.Connection) -> None:
 def test_category_rule_versions_cannot_overlap(conn: psycopg.Connection) -> None:
     sql = (
         "INSERT INTO ref.category_rules (category, authority, sla_hours, dedup_radius_m,"
-        " dedup_window_hours, valid_from, valid_to) VALUES ('noise', 'police', 4, 150, 3, %s, %s)"
+        " dedup_window_hours, valid_from, valid_to) VALUES ('test_only', 'police', 4, 150, 3, %s, %s)"
     )
     conn.execute(sql, ["2026-01-01", "2026-06-01"])
     conn.execute(sql, ["2026-06-01", None])  # adjacent: fine
