@@ -100,3 +100,55 @@ def fraud_flags(conn: psycopg.Connection, report: Report) -> list[str]:
     if total >= REPUTATION_MIN_CASES and rejected / total > REPUTATION_MAX_REJECTED:
         flags.append("low_reputation")
     return flags
+
+
+HOLD_RELATED_SQL = """
+WITH related AS (
+    SELECT report_id, case_id, %(flag)s::text AS flag
+    FROM ops.reports
+    WHERE reporter_id = %(reporter)s
+      AND received_at <= %(at)s
+      AND (
+        (%(flag)s = 'burst' AND received_at > %(at)s - make_interval(mins => %(burst)s))
+        OR (%(flag)s = 'repeat_target' AND plate_hash = %(plate)s
+            AND received_at > %(at)s - make_interval(days => %(days)s))
+        OR (%(flag)s = 'impossible_travel' AND received_at = (
+            SELECT max(received_at) FROM ops.reports
+            WHERE reporter_id = %(reporter)s AND received_at < %(at)s))
+      )
+),
+flag_reports AS (
+    UPDATE ops.reports r
+    SET fraud_flags = ARRAY(SELECT DISTINCT unnest(r.fraud_flags || ARRAY[related.flag]))
+    FROM related WHERE r.report_id = related.report_id
+)
+UPDATE ops.cases c
+SET needs_review = true,
+    review_reasons = ARRAY(SELECT DISTINCT unnest(c.review_reasons || ARRAY[%(flag)s::text])),
+    updated_at = now()
+FROM related
+WHERE c.case_id = related.case_id AND c.review_decision IS NULL
+"""
+
+
+def hold_related(conn: psycopg.Connection, report: Report, flags: list[str]) -> None:
+    """Once a pattern is visible, hold the earlier reports that formed it as well.
+
+    Detection lags: a burst is only recognisable at its sixth report. Rewards are accrued
+    when a fine is paid, typically days later, so flagging the earlier reports now still
+    stops their payout. Low reputation is about the reporter, not specific reports.
+    """
+    for flag in flags:
+        if flag == "low_reputation":
+            continue
+        conn.execute(
+            HOLD_RELATED_SQL,
+            {
+                "flag": flag,
+                "reporter": report.reporter_id,
+                "at": report.received_at,
+                "burst": BURST_WINDOW_MIN,
+                "plate": report.plate_hash,
+                "days": REPEAT_TARGET_DAYS,
+            },
+        )

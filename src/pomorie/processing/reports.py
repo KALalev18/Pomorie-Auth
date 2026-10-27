@@ -12,7 +12,7 @@ from pathlib import Path
 import psycopg
 
 from pomorie.processing.dedup import MAX_SPAN_WINDOWS, Candidate, choose_case
-from pomorie.processing.fraud import fraud_flags
+from pomorie.processing.fraud import fraud_flags, hold_related
 from pomorie.processing.validation import Report
 
 ENRICH_SQL = (Path(__file__).parent / "sql" / "enrich_report.sql").read_text("utf-8")
@@ -192,4 +192,5 @@ def process_report(conn: psycopg.Connection, report: Report, rule: Rule) -> Resu
             flags,
         ],
     )
+    hold_related(conn, report, flags)
     return Result(case_id, is_duplicate, flags)

@@ -195,6 +195,13 @@ def test_flagged_case_waits_for_review(conn: psycopg.Connection, processor: Proc
         "SELECT needs_review, review_reasons FROM ops.cases WHERE case_id = %s", [flagged]
     ).fetchone() or (False, [])
     assert needs_review and reasons == ["burst"]
+    # The earlier reports of the burst are held too, not only the one that revealed it.
+    held = conn.execute(
+        "SELECT count(*) FROM ops.reports r JOIN ops.cases c USING (case_id)"
+        " WHERE r.reporter_id = %s AND c.needs_review AND 'burst' = ANY(r.fraud_flags)",
+        [reporter],
+    ).fetchone()
+    assert held == (6,)
 
     fine = {"fine_id": str(uuid.uuid4()), "amount_cents": 7500, "currency": "EUR"}
     send(
