@@ -29,6 +29,10 @@ class Settings(BaseSettings):
     # deployment this lives in a secrets manager and is rotated; here it is a demo value.
     pseudonym_key: str = "local-demo-pseudonym-key"
 
+    # Shared token for the manual-review endpoints. A real deployment would use the
+    # municipality's identity provider (OIDC) with a reviewer role instead.
+    reviewer_token: str = "local-demo-reviewer-token"
+
     @property
     def postgres_dsn(self) -> str:
         return (
