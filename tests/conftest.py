@@ -5,6 +5,7 @@ import pytest
 
 from pomorie.config import get_settings
 from pomorie.db import migrate
+from pomorie.reference.load import load_reference
 
 TEST_DB = "pomorie_test"
 
@@ -23,6 +24,8 @@ def db_dsn() -> Iterator[str]:
         admin.execute(f"CREATE DATABASE {TEST_DB}")
     dsn = admin_dsn.rsplit("/", 1)[0] + f"/{TEST_DB}"
     migrate(dsn)
+    with psycopg.connect(dsn) as conn:
+        load_reference(conn)
     yield dsn
     with psycopg.connect(admin_dsn, autocommit=True) as admin:
         admin.execute(f"DROP DATABASE IF EXISTS {TEST_DB} WITH (FORCE)")
