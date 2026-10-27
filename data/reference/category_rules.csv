@@ -1,7 +1,7 @@
 category,authority,sla_hours,dedup_radius_m,dedup_window_hours,fine_cents,reward_share_bp,valid_from,valid_to
 illegal_parking,traffic_police,4,30,3,5000,2000,2026-01-01T00:00:00Z,2026-07-01T00:00:00Z
 illegal_parking,traffic_police,4,30,3,7500,1500,2026-07-01T00:00:00Z,
-littering,municipality_cleanliness,48,50,72,10000,2000,2026-01-01T00:00:00Z,
+littering,municipality_cleanliness,48,50,12,10000,2000,2026-01-01T00:00:00Z,
 illegal_dumping,municipality_environment,72,100,168,50000,1000,2026-01-01T00:00:00Z,
 broken_infrastructure,municipality_infrastructure,168,25,720,,0,2026-01-01T00:00:00Z,
 street_lighting,municipality_infrastructure,72,40,336,,0,2026-01-01T00:00:00Z,
