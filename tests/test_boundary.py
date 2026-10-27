@@ -47,6 +47,7 @@ def test_rejects_missing_relation() -> None:
 def test_committed_boundary(path: Path) -> None:
     collection = json.loads(path.read_text("utf-8"))
     boundary = shape(collection["features"][0]["geometry"])
+    assert boundary.geom_type == "MultiPolygon"
     assert boundary.is_valid
     assert "OpenStreetMap" in collection["features"][0]["properties"]["attribution"]
     # OSM admin_centre node of the relation (Pomorie town).

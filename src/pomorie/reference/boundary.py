@@ -63,8 +63,12 @@ def relation_to_polygon(overpass: dict[str, Any], relation_id: int = RELATION_ID
     if not polygons:
         raise ValueError("member ways did not form a closed ring")
 
-    merged = unary_union(polygons)
-    return merged if isinstance(merged, MultiPolygon) else MultiPolygon([merged])
+    return as_multipolygon(unary_union(polygons))
+
+
+def as_multipolygon(geometry: Polygon | MultiPolygon) -> MultiPolygon:
+    """Always emit one geometry type so consumers (app, PostGIS) don't need to branch."""
+    return geometry if isinstance(geometry, MultiPolygon) else MultiPolygon([geometry])
 
 
 def to_feature_collection(geometry: Polygon | MultiPolygon) -> dict[str, Any]:
@@ -102,13 +106,14 @@ def main() -> None:
         RAW_PATH.write_text(json.dumps(overpass), "utf-8")
 
     boundary = relation_to_polygon(overpass)
-    simplified = boundary.simplify(APP_SIMPLIFY_TOLERANCE_DEG, preserve_topology=True)
+    simplified = as_multipolygon(
+        boundary.simplify(APP_SIMPLIFY_TOLERANCE_DEG, preserve_topology=True)
+    )
     write_geojson(FULL_PATH, boundary)
     write_geojson(APP_PATH, simplified)
 
-    def vertices(g: Polygon | MultiPolygon) -> int:
-        parts = g.geoms if isinstance(g, MultiPolygon) else [g]
-        return sum(len(p.exterior.coords) for p in parts)
+    def vertices(g: MultiPolygon) -> int:
+        return sum(len(p.exterior.coords) for p in g.geoms)
 
     print(f"full boundary: {vertices(boundary)} vertices -> {FULL_PATH.relative_to(REPO_ROOT)}")
     print(f"app boundary:  {vertices(simplified)} vertices -> {APP_PATH.relative_to(REPO_ROOT)}")
