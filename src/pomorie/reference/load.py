@@ -11,11 +11,7 @@ import json
 import psycopg
 
 from pomorie.db import connect
-from pomorie.reference.boundary import FULL_PATH as BOUNDARY_PATH
-from pomorie.reference.boundary import REPO_ROOT
-from pomorie.reference.osm import FEATURES_PATH
-
-RULES_PATH = REPO_ROOT / "data" / "reference" / "category_rules.csv"
+from pomorie.reference.paths import BOUNDARY_PATH, FEATURES_PATH, RULES_PATH
 
 
 def load_reference(conn: psycopg.Connection) -> dict[str, int]:

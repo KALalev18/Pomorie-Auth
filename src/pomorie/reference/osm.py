@@ -21,13 +21,11 @@ import osmium
 from shapely import prepare
 from shapely.geometry import LineString, Point, Polygon, mapping, shape
 
-from pomorie.reference.boundary import FULL_PATH as BOUNDARY_PATH
-from pomorie.reference.boundary import REPO_ROOT
 from pomorie.reference.overpass import ATTRIBUTION, USER_AGENT
+from pomorie.reference.paths import BOUNDARY_PATH, FEATURES_PATH, REPO_ROOT
 
 PBF_URL = "https://download.geofabrik.de/europe/bulgaria-latest.osm.pbf"
 PBF_PATH = REPO_ROOT / "data" / "raw" / "bulgaria-latest.osm.pbf"
-FEATURES_PATH = REPO_ROOT / "data" / "reference" / "osm_features.geojson"
 
 # Areas we measure distance to keep their outline instead of collapsing to a line.
 _POLYGON_KINDS = {"school", "beach"}

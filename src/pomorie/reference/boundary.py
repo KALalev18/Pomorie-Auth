@@ -21,16 +21,16 @@ from shapely.ops import polygonize, unary_union
 
 from pomorie.reference import overpass
 from pomorie.reference.overpass import ATTRIBUTION
+from pomorie.reference.paths import APP_BOUNDARY_PATH, BOUNDARY_PATH, REPO_ROOT
 
 RELATION_ID = 1937060
 
 # ~50 m at Pomorie's latitude; plenty for drawing the boundary in the app.
 APP_SIMPLIFY_TOLERANCE_DEG = 0.0005
 
-REPO_ROOT = Path(__file__).resolve().parents[3]
 RAW_PATH = REPO_ROOT / "data" / "raw" / f"overpass_relation_{RELATION_ID}.json"
-FULL_PATH = REPO_ROOT / "data" / "reference" / "pomorie_boundary.geojson"
-APP_PATH = REPO_ROOT / "app" / "public" / "pomorie_boundary.geojson"
+FULL_PATH = BOUNDARY_PATH
+APP_PATH = APP_BOUNDARY_PATH
 
 
 def fetch_relation(relation_id: int = RELATION_ID) -> dict[str, Any]:

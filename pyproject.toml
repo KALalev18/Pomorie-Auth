@@ -9,10 +9,10 @@ dependencies = [
     "boto3>=1.35",
     "confluent-kafka>=2.5",
     "email-validator>=2.2",
+    "faker>=30",
     "fastapi>=0.115",
     "httpx>=0.27",
     "jsonschema[format-nongpl]>=4.23",
-    "osmium>=4.0",
     "pillow>=10.4",
     "psycopg[binary]>=3.2",
     "pydantic-settings>=2.5",
@@ -22,7 +22,12 @@ dependencies = [
 ]
 
 [dependency-groups]
+# Only needed to refresh data/reference from the OSM extract, not to run the platform.
+reference = [
+    "osmium>=4.3.2",
+]
 dev = [
+    { include-group = "reference" },
     "boto3-stubs[s3]>=1.43.119",
     "httpx>=0.27",
     "mypy>=1.11",

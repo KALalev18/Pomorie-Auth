@@ -259,6 +259,18 @@ wheels = [
 ]
 
 [[package]]
+name = "faker"
+version = "40.43.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "tzdata", marker = "sys_platform == 'win32'" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/33/6c/b8793efc2f00a912ef17cf0b61b717cddf34607499efcb8a32238c119368/faker-40.43.0.tar.gz", hash = "sha256:02fae4327c03a4a6315e1b428a3878f435bfc276c93435ea349b95c0c9372361", size = 2032713, upload-time = "2026-10-09T20:06:29.652Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/81/ed/0d6d0d6467ae3d009fb82fb411867c7fcfeadbdd25602cab0d7a7963f400/faker-40.43.0-py3-none-any.whl", hash = "sha256:9dd7c0ddfaf30c842b05502d3cf641c135e0120a3a19047008ba8525b72953ed", size = 2069082, upload-time = "2026-10-09T20:06:27.166Z" },
+]
+
+[[package]]
 name = "fastapi"
 version = "0.162.0"
 source = { registry = "https://pypi.org/simple" }
@@ -607,10 +619,10 @@ dependencies = [
     { name = "boto3" },
     { name = "confluent-kafka" },
     { name = "email-validator" },
+    { name = "faker" },
     { name = "fastapi" },
     { name = "httpx" },
     { name = "jsonschema", extra = ["format-nongpl"] },
-    { name = "osmium" },
     { name = "pillow" },
     { name = "psycopg", extra = ["binary"] },
     { name = "pydantic-settings" },
@@ -624,9 +636,13 @@ dev = [
     { name = "boto3-stubs", extra = ["s3"] },
     { name = "httpx" },
     { name = "mypy" },
+    { name = "osmium" },
     { name = "pytest" },
     { name = "ruff" },
     { name = "types-jsonschema" },
+]
+reference = [
+    { name = "osmium" },
 ]
 
 [package.metadata]
@@ -634,10 +650,10 @@ requires-dist = [
     { name = "boto3", specifier = ">=1.35" },
     { name = "confluent-kafka", specifier = ">=2.5" },
     { name = "email-validator", specifier = ">=2.2" },
+    { name = "faker", specifier = ">=30" },
     { name = "fastapi", specifier = ">=0.115" },
     { name = "httpx", specifier = ">=0.27" },
     { name = "jsonschema", extras = ["format-nongpl"], specifier = ">=4.23" },
-    { name = "osmium", specifier = ">=4.0" },
     { name = "pillow", specifier = ">=10.4" },
     { name = "psycopg", extras = ["binary"], specifier = ">=3.2" },
     { name = "pydantic-settings", specifier = ">=2.5" },
@@ -651,10 +667,12 @@ dev = [
     { name = "boto3-stubs", extras = ["s3"], specifier = ">=1.43.119" },
     { name = "httpx", specifier = ">=0.27" },
     { name = "mypy", specifier = ">=1.11" },
+    { name = "osmium", specifier = ">=4.3.2" },
     { name = "pytest", specifier = ">=8.3" },
     { name = "ruff", specifier = ">=0.6" },
     { name = "types-jsonschema", specifier = ">=4.26.0.20261006" },
 ]
+reference = [{ name = "osmium", specifier = ">=4.3.2" }]
 
 [[package]]
 name = "psycopg"
