@@ -1,0 +1,42 @@
+version: 2
+
+sources:
+  - name: raw
+    description: Events as landed by the stream processor (one row per accepted event).
+    loaded_at_field: ingested_at
+    freshness:
+      warn_after: { count: 6, period: hour }
+      error_after: { count: 24, period: hour }
+    tables:
+      - name: report_events
+      - name: outcome_events
+      - name: dead_letter
+        loaded_at_field: created_at
+        freshness: null
+
+  - name: ops
+    description: Operational state written by the stream processor.
+    tables:
+      - name: reports
+      - name: cases
+      - name: case_status_history
+      - name: fines
+
+  - name: ledger
+    tables:
+      - name: transactions
+      - name: entries
+      - name: accounts
+
+  - name: ref
+    tables:
+      - name: category_rules
+      - name: osm_features
+      - name: municipality_boundary
+
+  - name: identity
+    description: >
+      Personal data. The warehouse reads only reporter_id, created_at and erased_at from it,
+      never names or e-mail addresses.
+    tables:
+      - name: reporters

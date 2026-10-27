@@ -1,0 +1,112 @@
+version: 2
+
+models:
+  - name: fct_reports
+    description: One row per accepted report.
+    columns:
+      - name: report_id
+        tests: [unique, not_null]
+      - name: case_id
+        tests:
+          - not_null
+          - relationships:
+              arguments: { to: ref('fct_cases'), field: case_id }
+      - name: reporter_key
+        tests:
+          - not_null
+          - relationships:
+              arguments: { to: ref('dim_reporter'), field: reporter_key }
+      - name: category
+        tests:
+          - relationships:
+              arguments: { to: ref('dim_category'), field: category }
+      - name: settlement
+        tests:
+          - relationships:
+              arguments: { to: ref('dim_location'), field: settlement }
+      - name: date_key
+        tests:
+          - relationships:
+              arguments: { to: ref('dim_date'), field: date_key }
+
+  - name: fct_cases
+    description: One row per case (one real-world issue, possibly reported several times).
+    columns:
+      - name: case_id
+        tests: [unique, not_null]
+      - name: status
+        tests:
+          - accepted_values:
+              arguments: { values: [routed, rejected, resolved, fined, paid] }
+      - name: authority
+        tests:
+          - accepted_values:
+              arguments:
+                values: [traffic_police, police, municipality_cleanliness,
+                         municipality_infrastructure, municipality_environment]
+      - name: rule_key
+        description: The category rule version valid when the case was first reported.
+        tests:
+          - not_null
+          - relationships:
+              arguments: { to: ref('dim_category_rule'), field: rule_key }
+      - name: report_count
+        tests: [not_null]
+
+  - name: fct_fines
+    columns:
+      - name: fine_id
+        tests: [unique, not_null]
+      - name: case_id
+        tests:
+          - relationships:
+              arguments: { to: ref('fct_cases'), field: case_id }
+      - name: currency
+        tests:
+          - accepted_values:
+              arguments: { values: [EUR] }
+
+  - name: fct_reward_ledger
+    description: Ledger entries; positive = debit, negative = credit.
+    columns:
+      - name: entry_id
+        tests: [unique, not_null]
+      - name: txn_kind
+        tests:
+          - accepted_values:
+              arguments: { values: [reward_accrual, reward_payout] }
+      - name: account_kind
+        tests:
+          - accepted_values:
+              arguments: { values: [expense, liability, asset] }
+
+  - name: dim_reporter
+    description: Pseudonymised reporters. No personal data.
+    columns:
+      - name: reporter_key
+        tests: [unique, not_null]
+      - name: reputation_tier
+        tests:
+          - accepted_values:
+              arguments: { values: [new, standard, trusted, watch] }
+
+  - name: dim_category
+    columns:
+      - name: category
+        tests: [unique, not_null]
+
+  - name: dim_category_rule
+    description: SCD type 2 history of routing and reward rules.
+    columns:
+      - name: rule_key
+        tests: [unique, not_null]
+
+  - name: dim_location
+    columns:
+      - name: settlement
+        tests: [unique, not_null]
+
+  - name: dim_date
+    columns:
+      - name: date_key
+        tests: [unique, not_null]

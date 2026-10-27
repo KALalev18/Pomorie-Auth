@@ -30,6 +30,7 @@ htmlcov/
 dbt/target/
 dbt/dbt_packages/
 dbt/logs/
+dbt/.user.yml
 
 # Dagster
 .dagster_home/

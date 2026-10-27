@@ -1,0 +1,32 @@
+name: pomorie
+version: "0.1.0"
+config-version: 2
+profile: pomorie
+
+model-paths: ["models"]
+snapshot-paths: ["snapshots"]
+test-paths: ["tests"]
+macro-paths: ["macros"]
+target-path: target
+clean-targets: ["target", "dbt_packages"]
+
+vars:
+  # Same key and format as pomorie.privacy.pseudonym; from the environment, never committed.
+  pseudonym_key: "{{ env_var('PSEUDONYM_KEY', 'local-demo-pseudonym-key') }}"
+  boundary_tolerance_m: 100
+
+models:
+  pomorie:
+    staging:
+      +schema: analytics_staging
+      +materialized: view
+    intermediate:
+      +schema: analytics_intermediate
+      +materialized: view
+    marts:
+      +schema: analytics
+      +materialized: table
+
+snapshots:
+  pomorie:
+    +target_schema: analytics_snapshots
