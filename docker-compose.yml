@@ -61,7 +61,10 @@ services:
   # S3-compatible object store for photos (MinIO no longer publishes community images).
   seaweedfs:
     image: chrislusf/seaweedfs:3.80
-    command: server -s3 -s3.config=/etc/seaweedfs/s3.json -dir=/data -volume.max=5
+    # Small volumes with room to grow: a new bucket allocates 7 volumes at once.
+    command: >-
+      server -s3 -s3.config=/etc/seaweedfs/s3.json -dir=/data
+      -volume.max=50 -master.volumeSizeLimitMB=64
     ports: ["8333:8333"]
     volumes:
       - ./infra/seaweedfs/s3.json:/etc/seaweedfs/s3.json:ro
