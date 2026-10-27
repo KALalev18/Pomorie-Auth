@@ -45,6 +45,12 @@ def test_every_semantic_problem_is_reported() -> None:
     assert reasons == ["outside_boundary", "future_timestamp", "low_gps_accuracy"]
 
 
+def test_boundary_tolerance_accepts_waterline_but_not_open_sea() -> None:
+    # Square's eastern edge is lon 27.7; 1 m of longitude here is ~1/82 000 degree.
+    assert SQUARE.covers(42.6, 27.7 + 50 / 82_000)
+    assert not SQUARE.covers(42.6, 27.7 + 200 / 82_000)
+
+
 def test_stale_report() -> None:
     report = make_report(occurred_at=T0 - timedelta(days=8))
     assert semantic_errors(report, SQUARE)[0].startswith("stale_report")

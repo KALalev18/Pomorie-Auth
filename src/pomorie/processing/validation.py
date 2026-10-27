@@ -6,11 +6,13 @@ report makes sense for Pomorie. Failures go to the dead-letter table with every 
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Any
 
 from shapely import Geometry, prepare
+from shapely.affinity import affine_transform
 from shapely.geometry import Point
 
 MAX_CLOCK_SKEW = timedelta(minutes=10)  # phones with a slightly fast clock
@@ -51,12 +53,26 @@ class Report:
 
 
 class BoundaryCheck:
-    def __init__(self, boundary: Geometry) -> None:
-        prepare(boundary)
-        self._boundary = boundary
+    """Point-in-municipality test with a tolerance zone.
+
+    The municipality's eastern boundary *is* the coastline, so a resident reporting litter
+    at the waterline or on a pier, with normal GPS error, lands a few metres "in the sea".
+    The first full run rejected 4.8 % of genuine reports this way. A 100 m zone around the
+    boundary accepts them, while bad GPS fixes (kilometres off) are still rejected.
+
+    The buffer is computed in metres on a local equirectangular projection; over a 40 km
+    municipality its distortion is far below the 100 m tolerance.
+    """
+
+    def __init__(self, boundary: Geometry, tolerance_m: float = 100) -> None:
+        lat0 = math.radians(boundary.centroid.y)
+        self._kx, self._ky = 111_320 * math.cos(lat0), 110_574.0
+        projected = affine_transform(boundary, [self._kx, 0, 0, self._ky, 0, 0])
+        self._zone = projected.buffer(tolerance_m)
+        prepare(self._zone)
 
     def covers(self, lat: float, lon: float) -> bool:
-        return bool(self._boundary.covers(Point(lon, lat)))
+        return bool(self._zone.covers(Point(lon * self._kx, lat * self._ky)))
 
 
 def semantic_errors(report: Report, boundary: BoundaryCheck) -> list[str]:
