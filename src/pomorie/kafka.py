@@ -15,6 +15,9 @@ from pomorie.config import get_settings
 # of the same category, so this ordering removes races without any locking.
 REPORT_PARTITIONS = 4
 OUTCOME_PARTITIONS = 2
+# Events carry pseudonymous personal data; Kafka keeps them only as long as needed to
+# recover from an outage. The database is the system of record, and erasure acts there.
+RETENTION_MS = str(7 * 24 * 3600 * 1000)
 
 
 def ensure_topics() -> None:
@@ -37,7 +40,7 @@ def ensure_topics() -> None:
                 f"expected {partitions}"
             )
     new = [
-        NewTopic(t, num_partitions=n, replication_factor=1)
+        NewTopic(t, num_partitions=n, replication_factor=1, config={"retention.ms": RETENTION_MS})
         for t, n in wanted.items()
         if t not in existing
     ]
