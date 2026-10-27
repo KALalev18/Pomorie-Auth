@@ -122,21 +122,22 @@ Measured on Windows 11 with Docker Desktop (16 CPUs, 8 GB for Docker), with 92 d
 
 | What | Result | Command |
 |---|---|---|
-| Events generated and processed | 8,968 events → 8,666 accepted, 302 dead-lettered, 4,601 cases | `docker compose run --rm demo` |
+| Events generated and processed | 8,968 events → 8,666 accepted, 302 dead-lettered, 4,601 cases (identical in two clean replays) | `docker compose run --rm demo` |
 | Validation | 193/193 bad-GPS and 43/43 stale reports rejected; 0 of 7,944 genuine reports rejected | `python -m pomorie.evaluation` |
 | Deduplication (pairwise) | precision **0.759**, recall **0.972** | `python -m pomorie.evaluation` |
-| Fraud flags | precision **0.997**, recall **0.795** (576 flagged of 722 abusive) | `python -m pomorie.evaluation` |
+| Fraud flags | precision **0.997**, recall **0.795–0.808** across two replays (576–585 flagged of 722 abusive) | `python -m pomorie.evaluation` |
 | Latency, report submitted → case routed | p50 **69 ms**, p95 101 ms, p99 123 ms at 20 reports/s for 60 s | `python -m pomorie.bench latency --rate 20 --seconds 60` |
 | API response time | p50 75 ms, p95 105 ms (includes the Kafka acknowledgement) | same |
 | Processor throughput | **62 reports/s** with 1 consumer, **88 reports/s** with 4 (11,066 reports, identical 5,446 cases) | `scripts/bench_throughput.sh 1`, `… 4` |
-| Warehouse build | 21 models + 1 snapshot + 40 tests in **6.9 s**; 40/40 tests pass | `cd dbt && dbt build`, then `python -m pomorie.bench dbt` |
-| Ledger reconciliation | 153/153 days pass; ledger sums to 0 over 2,986 entries | `python -m pomorie.reconciliation <day>` |
+| Warehouse build | 21 models + 1 snapshot + 40 tests in **about 7 s** (6.9 and 7.1 s); 40/40 tests pass | `cd dbt && dbt build`, then `python -m pomorie.bench dbt` |
+| Ledger reconciliation | 153/153 days pass; ledger sums to 0 over 3,052 entries | `python -m pomorie.reconciliation <day>` |
 | Test suite | 73 pytest tests (unit + integration against the real services) | `pytest` |
 
 How to read these numbers:
 - **Throughput** is far above need. Pomorie generates about 100 reports a day; one consumer handles about 5 million. The 4-consumer run is limited by the busiest partition (illegal parking), as explained under deduplication.
 - **Fraud precision of 0.997** only says the rules catch the abuse patterns I generated. Real abuse is messier, and this number would drop on real data.
 - **Dedup thresholds were tuned on generated labels**, so a real launch would need a labelled sample of real reports.
+- **Replays are identical except for fraud flags.** Case ids derive from the opening report, and each category is processed in order, so two clean replays produced the same 4,601 cases, 1,929 fines and 3,052 ledger entries. Fraud checks, though, read a reporter's history across all categories, which arrive on different partitions in an order Kafka does not guarantee. A borderline burst can therefore be flagged in one replay and not the next: 576 against 585 flagged reports, and €23,508.75 against €23,567.50 in simulated rewards. The fix would be a second consumer group keyed by reporter that computes the flags in event-time order.
 
 ### What the measurements caught
 
