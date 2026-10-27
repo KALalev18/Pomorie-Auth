@@ -92,6 +92,15 @@ services:
       migrate: { condition: service_completed_successfully }
       redpanda: { condition: service_healthy }
 
+  # One-shot: seed three months of synthetic history (docker compose run --rm demo).
+  demo:
+    <<: *python
+    command: python -m pomorie.demo
+    environment: *pomorie-env
+    profiles: ["demo"]
+    depends_on:
+      processor: { condition: service_started }
+
 volumes:
   pgdata:
   s3data:
