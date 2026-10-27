@@ -19,7 +19,9 @@ dependencies = [
     "fastapi>=0.115",
     "httpx>=0.27",
     "jsonschema[format-nongpl]>=4.23",
+    "pandas>=2.2",
     "pillow>=10.4",
+    "plotly>=5.24",
     "psycopg[binary]>=3.2",
     "pydantic-settings>=2.5",
     "python-multipart>=0.0.9",
@@ -27,6 +29,7 @@ dependencies = [
     # SQLAlchemy 2.1 makes psycopg 3 the default Postgres driver; dagster-postgres still
     # needs psycopg2 semantics (NOTIFY with bound parameters). Drop when Dagster supports it.
     "sqlalchemy>=2.0,<2.1",
+    "streamlit>=1.40",
     "uvicorn[standard]>=0.30",
 ]
 
@@ -40,6 +43,8 @@ dev = [
     "boto3-stubs[s3]>=1.43.119",
     "httpx>=0.27",
     "mypy>=1.11",
+    "pandas-stubs>=3.0.5.260914",
+    "playwright>=1.48",
     "pytest>=8.3",
     "ruff>=0.6",
     "sqlfluff>=3.2",

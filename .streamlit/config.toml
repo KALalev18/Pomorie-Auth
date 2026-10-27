@@ -1,0 +1,6 @@
+[theme]
+# Series blue as the accent: Streamlit's default red reads as an error/critical state.
+primaryColor = "#2a78d6"
+
+[browser]
+gatherUsageStats = false

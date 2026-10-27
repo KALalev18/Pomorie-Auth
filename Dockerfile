@@ -16,6 +16,7 @@ COPY contracts ./contracts
 COPY sql ./sql
 COPY data/reference ./data/reference
 COPY dbt ./dbt
+COPY .streamlit ./.streamlit
 COPY infra/dagster /opt/dagster/home
 # dbt parse writes the manifest that Dagster's dbt assets are built from.
 RUN uv sync --frozen --no-dev \

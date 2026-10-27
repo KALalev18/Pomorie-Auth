@@ -15,6 +15,8 @@ x-pomorie-env: &pomorie-env
   S3_ACCESS_KEY: ${S3_ACCESS_KEY:-pomorie-local}
   S3_SECRET_KEY: ${S3_SECRET_KEY:-pomorie-local-secret}
   PSEUDONYM_KEY: ${PSEUDONYM_KEY:-local-demo-pseudonym-key}
+  DASHBOARD_DB_USER: ${DASHBOARD_DB_USER:-dashboard}
+  DASHBOARD_DB_PASSWORD: ${DASHBOARD_DB_PASSWORD:-dashboard-local}
 
 services:
   postgres:
@@ -93,6 +95,15 @@ services:
     depends_on:
       migrate: { condition: service_completed_successfully }
       redpanda: { condition: service_healthy }
+
+  # Reads the analytics marts only, as the read-only "dashboard" login.
+  dashboard:
+    <<: *python
+    command: streamlit run src/pomorie/dashboard/app.py --server.address 0.0.0.0 --server.port 8501 --server.headless true
+    environment: *pomorie-env
+    ports: ["8501:8501"]
+    depends_on:
+      migrate: { condition: service_completed_successfully }
 
   dagster-webserver:
     <<: *python
