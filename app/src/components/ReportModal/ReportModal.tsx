@@ -1,16 +1,25 @@
-import { useEffect, useRef, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
 import { useForm } from '../../hooks/useForm';
-import { REPORT_CATEGORIES, type ReportFormData, type ReportModalProps } from './ReportModal.types';
+import {
+  MAX_PHOTOS,
+  PLATE_CATEGORIES,
+  REPORT_CATEGORIES,
+  type ReportFormData,
+  type ReportModalProps,
+} from './ReportModal.types';
 
 const INITIAL_FORM: ReportFormData = {
   category: '',
   description: '',
-  contactEmail: '',
+  plate: '',
 };
 
 export default function ReportModal({ isOpen, location, onClose, onSubmit }: ReportModalProps) {
   const { values, handleChange, reset } = useForm<ReportFormData>(INITIAL_FORM);
   const firstInputRef = useRef<HTMLSelectElement>(null);
+  const [photos, setPhotos] = useState<File[]>([]);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   /* focus first field when modal opens */
   useEffect(() => {
@@ -30,11 +39,28 @@ export default function ReportModal({ isOpen, location, onClose, onSubmit }: Rep
     return () => document.removeEventListener('keydown', handleKey);
   }, [isOpen, onClose]);
 
-  function handleSubmit(e: FormEvent<HTMLFormElement>) {
+  function handlePhotos(e: ChangeEvent<HTMLInputElement>) {
+    setPhotos(Array.from(e.target.files ?? []).slice(0, MAX_PHOTOS));
+  }
+
+  async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    onSubmit(values);
-    reset();
-    onClose();
+    if (!values.category) {
+      setError('Изберете категория.');
+      return;
+    }
+    setSubmitting(true);
+    setError(null);
+    try {
+      await onSubmit(values, photos);
+      reset();
+      setPhotos([]);
+      onClose();
+    } catch {
+      setError('Докладът не беше изпратен. Проверете връзката и опитайте отново.');
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   if (!isOpen) return null;
@@ -93,36 +119,61 @@ export default function ReportModal({ isOpen, location, onClose, onSubmit }: Rep
               className={inputClass}
             >
               <option value="" disabled>Изберете категория…</option>
-              {REPORT_CATEGORIES.map((cat) => (
-                <option key={cat} value={cat}>{cat}</option>
+              {REPORT_CATEGORIES.map(({ value, label }) => (
+                <option key={value} value={value}>{label}</option>
               ))}
             </select>
           </Field>
 
-          <Field label="Описание" htmlFor="description" required>
+          <Field label="Описание" htmlFor="description">
             <textarea
               id="description"
               name="description"
               value={values.description}
               onChange={handleChange}
-              required
+              maxLength={1000}
               rows={3}
               placeholder="Опишете проблема накратко…"
               className={`${inputClass} resize-none`}
             />
           </Field>
 
-          <Field label="Имейл за обратна връзка" htmlFor="contactEmail">
+          {PLATE_CATEGORIES.has(values.category) && (
+            <Field label="Регистрационен номер" htmlFor="plate">
+              <input
+                id="plate"
+                name="plate"
+                value={values.plate}
+                onChange={handleChange}
+                maxLength={16}
+                placeholder="А 1234 ВК"
+                className={inputClass}
+              />
+              <p className="text-[11px] text-white/40">
+                Номерът се криптира еднопосочно (HMAC) и не се съхранява в явен вид.
+              </p>
+            </Field>
+          )}
+
+          <Field label={`Снимки (до ${MAX_PHOTOS})`} htmlFor="photos">
             <input
-              type="email"
-              id="contactEmail"
-              name="contactEmail"
-              value={values.contactEmail}
-              onChange={handleChange}
-              placeholder="you@example.com"
-              className={inputClass}
+              type="file"
+              id="photos"
+              accept="image/*"
+              multiple
+              onChange={handlePhotos}
+              className={`${inputClass} file:mr-3 file:rounded-lg file:border-0 file:bg-white/15 file:px-2 file:py-1 file:text-white`}
             />
+            <p className="text-[11px] text-white/40">
+              Метаданните (GPS, устройство) се премахват преди съхранение.
+            </p>
           </Field>
+
+          {error && (
+            <p role="alert" className="text-xs text-red-300">
+              {error}
+            </p>
+          )}
 
           {/* actions */}
           <div className="mt-1 flex gap-2">
@@ -135,9 +186,10 @@ export default function ReportModal({ isOpen, location, onClose, onSubmit }: Rep
             </button>
             <button
               type="submit"
-              className="flex-1 cursor-pointer rounded-xl bg-gradient-to-r from-sky-500 to-indigo-500 px-4 py-2.5 text-xs font-semibold text-white shadow-lg transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400"
+              disabled={submitting}
+              className="flex-1 cursor-pointer rounded-xl disabled:cursor-wait disabled:opacity-60 bg-gradient-to-r from-sky-500 to-indigo-500 px-4 py-2.5 text-xs font-semibold text-white shadow-lg transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400"
             >
-              Изпрати
+              {submitting ? 'Изпращане…' : 'Изпрати'}
             </button>
           </div>
         </form>

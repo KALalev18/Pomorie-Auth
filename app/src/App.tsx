@@ -3,6 +3,8 @@ import NavBar from './components/NavBar/NavBar';
 import MapView from './components/MapView/MapView';
 import Toast from './components/Toast/Toast';
 import ReportModal from './components/ReportModal/ReportModal';
+import MyReports, { type SubmittedReport } from './components/MyReports/MyReports';
+import { registerReporter, submitReport } from './api';
 import type { LatLng } from './components/MapView/MapView.types';
 import type { ReportFormData } from './components/ReportModal/ReportModal.types';
 import type { NavUser } from './components/NavBar/NavBar.types';
@@ -12,11 +14,36 @@ const MOCK_USER: NavUser = {
   email: 'demo.user@example.com',
 };
 
+const REPORTER_KEY = 'pomorie.reporterId';
+const REPORTS_KEY = 'pomorie.reports';
+const OUTSIDE_MESSAGE =
+  'Докладите са ограничени до територията на Община Поморие. Моля, изберете точка в рамките на общината.';
+
+/* localStorage can be unavailable (private mode); the app still works without it. */
+function load<T>(key: string, fallback: T): T {
+  try {
+    const raw = localStorage.getItem(key);
+    return raw ? (JSON.parse(raw) as T) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function save(key: string, value: unknown) {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch {
+    /* not persisted; fine for a demo session */
+  }
+}
+
 export default function App() {
   const [user, setUser] = useState<NavUser | undefined>(MOCK_USER);
   const [markerPosition, setMarkerPosition] = useState<LatLng | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
-  const [toastVisible, setToastVisible] = useState(false);
+  const [toast, setToast] = useState<{ message: string; tone: 'warning' | 'success' } | null>(null);
+  const [myReports, setMyReports] = useState<SubmittedReport[]>(() => load(REPORTS_KEY, []));
+  const [myReportsOpen, setMyReportsOpen] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
   const [hintDismissed, setHintDismissed] = useState(false);
 
@@ -27,7 +54,7 @@ export default function App() {
   }, []);
 
   const handleOutsideClick = useCallback(() => {
-    setToastVisible(true);
+    setToast({ message: OUTSIDE_MESSAGE, tone: 'warning' });
   }, []);
 
   const handleModalClose = useCallback(() => {
@@ -35,9 +62,25 @@ export default function App() {
     setMarkerPosition(null);
   }, []);
 
-  const handleReportSubmit = useCallback((data: ReportFormData) => {
-    console.info('[PomorieReports] Report submitted:', data, markerPosition);
-  }, [markerPosition]);
+  const handleReportSubmit = useCallback(
+    async (data: ReportFormData, photos: File[]) => {
+      if (!markerPosition) return;
+      let reporterId = load<string | null>(REPORTER_KEY, null);
+      if (!reporterId) {
+        reporterId = await registerReporter(MOCK_USER.name, MOCK_USER.email);
+        save(REPORTER_KEY, reporterId);
+      }
+      const eventId = await submitReport(reporterId, data, markerPosition, photos, crypto.randomUUID());
+      const entry = { eventId, category: data.category, submittedAt: new Date().toISOString() };
+      setMyReports((previous) => {
+        const next = [entry, ...previous];
+        save(REPORTS_KEY, next);
+        return next;
+      });
+      setToast({ message: 'Докладът е приет. Следете статуса в „Доклади“.', tone: 'success' });
+    },
+    [markerPosition],
+  );
 
   return (
     <div className="relative h-screen w-screen overflow-hidden bg-slate-950">
@@ -55,7 +98,7 @@ export default function App() {
       <NavBar
         user={user}
         onAboutUs={() => setAboutOpen(true)}
-        onReports={() => {}}
+        onReports={() => setMyReportsOpen(true)}
         onSignIn={() => setUser(MOCK_USER)}
         onSignOut={() => setUser(undefined)}
       />
@@ -87,10 +130,13 @@ export default function App() {
 
       {/* ── outside-area toast ── */}
       <Toast
-        message="Докладите са ограничени до територията на Община Поморие. Моля, изберете точка в рамките на общината."
-        visible={toastVisible}
-        onDismiss={() => setToastVisible(false)}
+        message={toast?.message ?? ''}
+        tone={toast?.tone}
+        visible={toast !== null}
+        onDismiss={() => setToast(null)}
       />
+
+      {myReportsOpen && <MyReports reports={myReports} onClose={() => setMyReportsOpen(false)} />}
 
       {/* ── about us overlay ── */}
       {aboutOpen && (
