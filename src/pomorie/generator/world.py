@@ -91,8 +91,12 @@ def _boundary() -> Geometry:
 
 
 def _busyness(line: LineString) -> float:
-    """Street weight: its length, boosted when it is close to a town centre."""
-    weight = float(line.length) * 1000
+    """Street weight: every named street counts once, boosted near a town centre.
+
+    Weighting by length made long intercity roads dominate, but residents report on the
+    streets where they live and park, not along the Burgas-Varna road.
+    """
+    weight = 1.0
     for (lat, lon), boost in CENTRES.values():
         a, _ = nearest_points(line, Point(lon, lat))
         if abs(a.y - lat) < 0.02 and abs(a.x - lon) < 0.025:  # within ~2 km
