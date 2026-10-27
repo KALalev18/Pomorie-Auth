@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import math
+import time
 import uuid
 from dataclasses import dataclass
-from datetime import timedelta
+from datetime import datetime, timedelta
 from pathlib import Path
 
 import psycopg
@@ -35,16 +37,35 @@ class MissingRule(LookupError):
     pass
 
 
-def rule_at(conn: psycopg.Connection, report: Report) -> Rule:
-    """The category rule valid when the report was received (type-2 lookup)."""
-    row = conn.execute(
-        "SELECT authority, sla_hours, dedup_radius_m, dedup_window_hours FROM ref.category_rules"
-        " WHERE category = %s AND tstzrange(valid_from, valid_to) @> %s::timestamptz",
-        [report.category, report.received_at],
-    ).fetchone()
-    if row is None:
-        raise MissingRule(f"no rule for {report.category} at {report.received_at.isoformat()}")
-    return Rule(*row)
+class RuleBook:
+    """All category rule versions, held in memory and refreshed every ``ttl_s`` seconds.
+
+    The table is tiny and changes rarely; reading it once per minute instead of once per
+    report saves a database round trip on the hot path.
+    """
+
+    def __init__(self, conn: psycopg.Connection, ttl_s: float = 60) -> None:
+        self._conn, self._ttl_s = conn, ttl_s
+        self._loaded_at = -math.inf
+        self._rules: list[tuple[str, datetime, datetime | None, Rule]] = []
+
+    def at(self, category: str, when: datetime) -> Rule:
+        """The rule valid at ``when`` (type-2 lookup: valid_from <= when < valid_to)."""
+        if time.monotonic() - self._loaded_at > self._ttl_s:
+            rows = self._conn.execute(
+                "SELECT category, valid_from, valid_to, authority, sla_hours, dedup_radius_m,"
+                " dedup_window_hours FROM ref.category_rules"
+            ).fetchall()
+            self._rules = [(c, f, t, Rule(*rest)) for c, f, t, *rest in rows]
+            self._loaded_at = time.monotonic()
+        for rule_category, valid_from, valid_to, rule in self._rules:
+            if (
+                rule_category == category
+                and valid_from <= when
+                and (valid_to is None or when < valid_to)
+            ):
+                return rule
+        raise MissingRule(f"no rule for {category} at {when.isoformat()}")
 
 
 def find_candidates(conn: psycopg.Connection, report: Report, rule: Rule) -> list[Candidate]:
@@ -73,9 +94,8 @@ def find_candidates(conn: psycopg.Connection, report: Report, rule: Rule) -> lis
     return [Candidate(*row) for row in rows]
 
 
-def process_report(conn: psycopg.Connection, report: Report) -> Result:
+def process_report(conn: psycopg.Connection, report: Report, rule: Rule) -> Result:
     """Must run inside the caller's transaction, together with the raw insert."""
-    rule = rule_at(conn, report)
     flags = fraud_flags(conn, report)
     case_id = choose_case(
         find_candidates(conn, report, rule),

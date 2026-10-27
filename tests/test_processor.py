@@ -10,7 +10,7 @@ from typing import Any
 import psycopg
 import pytest
 
-from pomorie.processing.consumer import Processor
+from pomorie.processing.consumer import Processor, Runner
 from pomorie.processing.ledger import accrue_pending_rewards
 
 pytestmark = pytest.mark.integration
@@ -222,3 +222,65 @@ def test_invalid_transition_is_dead_lettered(
         currency="EUR",
     )
     assert send(processor, OUTCOMES, paid_before_issued) == "dead_letter:semantic"
+
+
+class FakeMessage:
+    def __init__(self, value: bytes, offset: int, topic: str = REPORTS) -> None:
+        self._value, self._offset, self._topic = value, offset, topic
+
+    def topic(self) -> str:
+        return self._topic
+
+    def partition(self) -> int:
+        return 0
+
+    def offset(self) -> int:
+        return self._offset
+
+    def value(self) -> bytes:
+        return self._value
+
+    def error(self) -> None:
+        return None
+
+
+def _count(conn: psycopg.Connection, sql: str) -> int:
+    (n,) = conn.execute(sql).fetchone() or (0,)
+    return int(n)
+
+
+def test_batch_isolates_rejected_message(conn: psycopg.Connection) -> None:
+    runner = Runner(conn)
+    good = [report_event(at=T0 + timedelta(hours=i), lat=POMORIE[0] + i * 0.002) for i in range(2)]
+    batch = [
+        FakeMessage(json.dumps(good[0]).encode(), next(_offsets)),
+        FakeMessage(b"\x00garbage", next(_offsets)),
+        FakeMessage(json.dumps(good[1]).encode(), next(_offsets)),
+    ]
+    before = _count(conn, "SELECT count(*) FROM raw.report_events")
+    runner.process_batch(batch)  # type: ignore[arg-type]
+    assert _count(conn, "SELECT count(*) FROM raw.report_events") == before + 2
+    assert _count(conn, "SELECT count(*) FROM raw.dead_letter WHERE stage = 'parse'") >= 1
+
+
+def test_poison_message_is_parked_after_retries(
+    conn: psycopg.Connection, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    runner = Runner(conn)
+    good, poison = report_event(), report_event()
+    real_handle = runner.processor.handle
+
+    def flaky(topic: str, partition: int, offset: int, value: bytes | None) -> str:
+        if value and poison["event_id"].encode() in value:
+            raise psycopg.errors.InternalError("simulated bug")
+        return real_handle(topic, partition, offset, value)
+
+    monkeypatch.setattr(runner.processor, "handle", flaky)
+    monkeypatch.setattr("pomorie.processing.consumer.time.sleep", lambda _: None)
+    batch = [
+        FakeMessage(json.dumps(poison).encode(), next(_offsets)),
+        FakeMessage(json.dumps(good).encode(), next(_offsets)),
+    ]
+    runner.process_batch(batch)  # type: ignore[arg-type]
+    assert case_of(conn, good)  # the good event still went through
+    assert _count(conn, "SELECT count(*) FROM raw.dead_letter WHERE stage = 'processing'") == 1

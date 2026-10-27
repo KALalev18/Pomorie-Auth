@@ -47,18 +47,37 @@ def is_impossible_travel(
     return hours == 0 or distance_km / hours > MAX_SPEED_KMH
 
 
+HISTORY_SQL = """
+WITH history AS (
+    SELECT received_at, plate_hash, geom, case_id
+    FROM ops.reports
+    WHERE reporter_id = %(reporter)s AND received_at <= %(at)s
+)
+SELECT
+    (SELECT count(*) FROM history
+      WHERE received_at > %(at)s - make_interval(mins => %(burst)s)),
+    (SELECT count(*) FROM history
+      WHERE plate_hash = %(plate)s AND received_at > %(at)s - make_interval(days => %(days)s)),
+    prev.lat, prev.lon, prev.received_at,
+    reputation.total, reputation.rejected
+FROM
+    (SELECT 1) AS one
+    LEFT JOIN LATERAL (
+        SELECT ST_Y(geom::geometry) AS lat, ST_X(geom::geometry) AS lon, received_at
+        FROM history ORDER BY received_at DESC LIMIT 1
+    ) AS prev ON true
+    CROSS JOIN LATERAL (
+        -- Primary-key lookups for this reporter's cases only, not a scan of all cases.
+        SELECT count(*) AS total, count(*) FILTER (WHERE status = 'rejected') AS rejected
+        FROM ops.cases WHERE case_id IN (SELECT case_id FROM history)
+    ) AS reputation
+"""
+
+
 def fraud_flags(conn: psycopg.Connection, report: Report) -> list[str]:
-    flags = []
+    """All four checks from one query over the reporter's history (one round trip)."""
     row = conn.execute(
-        """
-        SELECT
-            count(*) FILTER (WHERE received_at > %(at)s - make_interval(mins => %(burst)s)),
-            count(*) FILTER (
-                WHERE plate_hash = %(plate)s
-                  AND received_at > %(at)s - make_interval(days => %(days)s))
-        FROM ops.reports
-        WHERE reporter_id = %(reporter)s AND received_at <= %(at)s
-        """,
+        HISTORY_SQL,
         {
             "reporter": report.reporter_id,
             "at": report.received_at,
@@ -67,26 +86,17 @@ def fraud_flags(conn: psycopg.Connection, report: Report) -> list[str]:
             "days": REPEAT_TARGET_DAYS,
         },
     ).fetchone()
-    recent, same_plate = row or (0, 0)
+    recent, same_plate, prev_lat, prev_lon, prev_at, total, rejected = row or (0,) * 7
+
+    flags = []
     if recent >= BURST_MAX_REPORTS:
         flags.append("burst")
     if report.plate_hash and same_plate >= REPEAT_TARGET_MAX:
         flags.append("repeat_target")
-
-    prev = conn.execute(
-        "SELECT ST_Y(geom::geometry), ST_X(geom::geometry), received_at FROM ops.reports"
-        " WHERE reporter_id = %s AND received_at <= %s ORDER BY received_at DESC LIMIT 1",
-        [report.reporter_id, report.received_at],
-    ).fetchone()
-    if prev and is_impossible_travel(prev, report.lat, report.lon, report.received_at):
+    if prev_at is not None and is_impossible_travel(
+        (prev_lat, prev_lon, prev_at), report.lat, report.lon, report.received_at
+    ):
         flags.append("impossible_travel")
-
-    total, rejected = conn.execute(
-        "SELECT count(DISTINCT c.case_id),"
-        " count(DISTINCT c.case_id) FILTER (WHERE c.status = 'rejected')"
-        " FROM ops.reports r JOIN ops.cases c USING (case_id) WHERE r.reporter_id = %s",
-        [report.reporter_id],
-    ).fetchone() or (0, 0)
     if total >= REPUTATION_MIN_CASES and rejected / total > REPUTATION_MAX_REJECTED:
         flags.append("low_reputation")
     return flags
