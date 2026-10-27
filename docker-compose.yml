@@ -1,5 +1,9 @@
 name: pomorie
 
+x-python: &python
+  build: .
+  image: pomorie-platform:local
+
 x-pomorie-env: &pomorie-env
   POSTGRES_HOST: postgres
   POSTGRES_PORT: "5432"
@@ -35,6 +39,7 @@ services:
       - --memory 1G
       - --kafka-addr internal://0.0.0.0:9092,external://0.0.0.0:19092
       - --advertise-kafka-addr internal://redpanda:9092,external://localhost:19092
+      - --set redpanda.auto_create_topics_enabled=false
     ports: ["19092:19092"]
     healthcheck:
       test: ["CMD-SHELL", "rpk cluster health | grep -q 'Healthy:.*true'"]
@@ -57,6 +62,35 @@ services:
     volumes:
       - ./infra/seaweedfs/s3.json:/etc/seaweedfs/s3.json:ro
       - s3data:/data
+
+  # One-shot setup: schema migrations, reference data and Kafka topics.
+  migrate:
+    <<: *python
+    command: >-
+      sh -c "python -m pomorie.db migrate && python -m pomorie.reference.load
+      && python -m pomorie.kafka"
+    environment: *pomorie-env
+    depends_on:
+      postgres: { condition: service_healthy }
+      redpanda: { condition: service_healthy }
+
+  api:
+    <<: *python
+    command: uvicorn pomorie.api.app:app --host 0.0.0.0 --port 8000
+    environment: *pomorie-env
+    ports: ["8000:8000"]
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      redpanda: { condition: service_healthy }
+      seaweedfs: { condition: service_started }
+
+  processor:
+    <<: *python
+    command: python -m pomorie.processing.consumer
+    environment: *pomorie-env
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      redpanda: { condition: service_healthy }
 
 volumes:
   pgdata:

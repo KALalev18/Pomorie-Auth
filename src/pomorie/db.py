@@ -7,6 +7,7 @@ Usage:
 from __future__ import annotations
 
 import sys
+import time
 from pathlib import Path
 
 import psycopg
@@ -18,6 +19,20 @@ MIGRATIONS_DIR = Path(__file__).resolve().parents[2] / "sql" / "migrations"
 
 def connect(dsn: str | None = None, autocommit: bool = False) -> psycopg.Connection:
     return psycopg.connect(dsn or get_settings().postgres_dsn, autocommit=autocommit)
+
+
+def wait_for_db(dsn: str | None = None, timeout_s: float = 60) -> None:
+    """Postgres restarts once after first-time init; retry until it accepts queries."""
+    deadline = time.monotonic() + timeout_s
+    while True:
+        try:
+            with connect(dsn) as conn:
+                conn.execute("SELECT 1")
+            return
+        except psycopg.OperationalError:
+            if time.monotonic() > deadline:
+                raise
+            time.sleep(1)
 
 
 def migrate(dsn: str | None = None) -> list[str]:
@@ -46,6 +61,7 @@ def main() -> int:
     if sys.argv[1:] != ["migrate"]:
         print("usage: python -m pomorie.db migrate")
         return 2
+    wait_for_db()
     applied = migrate()
     print(f"applied {len(applied)} migration(s): {', '.join(applied) or 'none pending'}")
     return 0

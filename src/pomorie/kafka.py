@@ -18,13 +18,24 @@ OUTCOME_PARTITIONS = 2
 
 
 def ensure_topics() -> None:
+    """Create the topics, or fail if one exists with the wrong partition count.
+
+    Auto-creation is disabled on the broker: an auto-created topic gets one partition,
+    which silently removes all parallelism (this happened once in development).
+    """
     settings = get_settings()
     admin = AdminClient({"bootstrap.servers": settings.kafka_bootstrap})
     wanted = {
         settings.reports_topic: REPORT_PARTITIONS,
         settings.outcomes_topic: OUTCOME_PARTITIONS,
     }
-    existing = set(admin.list_topics(timeout=10).topics)
+    existing = admin.list_topics(timeout=10).topics
+    for topic, partitions in wanted.items():
+        if topic in existing and len(existing[topic].partitions) != partitions:
+            raise RuntimeError(
+                f"topic {topic} has {len(existing[topic].partitions)} partitions, "
+                f"expected {partitions}"
+            )
     new = [
         NewTopic(t, num_partitions=n, replication_factor=1)
         for t, n in wanted.items()
@@ -75,3 +86,8 @@ def publish(producer: Producer, topic: str, key: str, event: dict[str, Any]) -> 
     producer.flush(10)
     if errors:
         raise KafkaException(errors[0])
+
+
+if __name__ == "__main__":
+    ensure_topics()
+    print("topics ready")
