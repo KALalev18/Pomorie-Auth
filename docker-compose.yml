@@ -24,7 +24,9 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-pomorie}
       POSTGRES_DB: ${POSTGRES_DB:-pomorie}
     ports: ["${POSTGRES_HOST_PORT:-55432}:5432"]
-    volumes: [pgdata:/var/lib/postgresql/data]
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./infra/postgres:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 3s
@@ -91,6 +93,21 @@ services:
     depends_on:
       migrate: { condition: service_completed_successfully }
       redpanda: { condition: service_healthy }
+
+  dagster-webserver:
+    <<: *python
+    command: dagster-webserver -h 0.0.0.0 -p 3000 -w /opt/dagster/home/workspace.yaml
+    environment: *pomorie-env
+    ports: ["${DAGSTER_PORT:-3030}:3000"]
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+
+  dagster-daemon:
+    <<: *python
+    command: dagster-daemon run -w /opt/dagster/home/workspace.yaml
+    environment: *pomorie-env
+    depends_on:
+      migrate: { condition: service_completed_successfully }
 
   # One-shot: seed three months of synthetic history (docker compose run --rm demo).
   demo:

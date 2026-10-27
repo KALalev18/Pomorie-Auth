@@ -8,8 +8,12 @@ requires-python = ">=3.12,<3.13"
 dependencies = [
     "boto3>=1.35",
     "confluent-kafka>=2.5",
-    "dbt-core>=1.9,<1.11",
-    "dbt-postgres>=1.9,<1.11",
+    "dagster>=1.9",
+    "dagster-dbt>=0.25",
+    "dagster-postgres>=0.25",
+    "dagster-webserver>=1.9",
+    "dbt-core>=1.11",
+    "dbt-postgres>=1.9",
     "email-validator>=2.2",
     "faker>=30",
     "fastapi>=0.115",
@@ -20,6 +24,9 @@ dependencies = [
     "pydantic-settings>=2.5",
     "python-multipart>=0.0.9",
     "shapely>=2.0",
+    # SQLAlchemy 2.1 makes psycopg 3 the default Postgres driver; dagster-postgres still
+    # needs psycopg2 semantics (NOTIFY with bound parameters). Drop when Dagster supports it.
+    "sqlalchemy>=2.0,<2.1",
     "uvicorn[standard]>=0.30",
 ]
 

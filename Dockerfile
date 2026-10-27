@@ -15,9 +15,16 @@ COPY src ./src
 COPY contracts ./contracts
 COPY sql ./sql
 COPY data/reference ./data/reference
-RUN uv sync --frozen --no-dev
+COPY dbt ./dbt
+COPY infra/dagster /opt/dagster/home
+# dbt parse writes the manifest that Dagster's dbt assets are built from.
+RUN uv sync --frozen --no-dev \
+    && cd dbt && DBT_PROFILES_DIR=. dbt parse --quiet
 
-RUN useradd --create-home --uid 1000 pomorie
+ENV DAGSTER_HOME=/opt/dagster/home
+
+RUN useradd --create-home --uid 1000 pomorie \
+    && chown -R pomorie /app/dbt /opt/dagster/home
 USER pomorie
 
 CMD ["python", "-m", "pomorie.processing.consumer"]

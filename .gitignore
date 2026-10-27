@@ -54,3 +54,4 @@ logs/
 Thumbs.db
 *.suo
 *.sw?
+.tmp_dagster_home_*/

@@ -10,3 +10,5 @@ data/raw
 .pytest_cache
 .mypy_cache
 .ruff_cache
+dbt/target
+dbt/logs
