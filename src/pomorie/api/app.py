@@ -167,6 +167,20 @@ def report_status(event_id: uuid.UUID, conn: DB) -> dict[str, Any]:
     return {"event_id": str(event_id), "status": "processing"}
 
 
+@app.get("/categories")
+def category_routing(conn: DB) -> list[dict[str, Any]]:
+    """Where each category is routed today, so the app can tell the reporter before they send."""
+    rows = conn.execute(
+        "SELECT category, authority, sla_hours FROM ref.category_rules"
+        " WHERE valid_from <= now() AND (valid_to IS NULL OR valid_to > now())"
+        " ORDER BY category"
+    ).fetchall()
+    return [
+        {"category": category, "authority": authority, "sla_hours": sla_hours}
+        for category, authority, sla_hours in rows
+    ]
+
+
 @app.post("/reporters", status_code=status.HTTP_201_CREATED)
 def register_reporter(reporter: ReporterIn, conn: DB) -> dict[str, str]:
     reporter_id = uuid.uuid4()

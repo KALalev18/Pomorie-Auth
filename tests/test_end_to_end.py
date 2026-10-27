@@ -15,6 +15,7 @@ from fastapi.testclient import TestClient
 from PIL import Image
 
 from pomorie import config, photos
+from pomorie.contracts import categories
 from pomorie.db import connect
 from pomorie.kafka import ensure_topics, make_consumer
 from pomorie.processing.consumer import Runner
@@ -87,3 +88,14 @@ def test_report_flows_from_api_to_routed_case(isolated_settings: None) -> None:
         status = client.get(f"/reports/{event_id}").json()
         assert status["status"] == "routed"
         assert status["authority"] == "traffic_police"
+
+
+def test_categories_show_todays_routing(isolated_settings: None) -> None:
+    from pomorie.api.app import app
+
+    with TestClient(app) as client:
+        routing = {row["category"]: row for row in client.get("/categories").json()}
+
+    assert set(routing) == set(categories())
+    assert routing["noise"]["authority"] == "police"
+    assert routing["illegal_parking"]["authority"] == "traffic_police"
