@@ -15,6 +15,7 @@ from pomorie.processing.dedup import MAX_SPAN_WINDOWS, Candidate, choose_case
 from pomorie.processing.fraud import fraud_flags, hold_related
 from pomorie.processing.validation import Report
 
+CASE_NAMESPACE = uuid.UUID("3f6e2a1c-8d4b-4c7e-9a2f-6b1d0e5c7a93")
 ENRICH_SQL = (Path(__file__).parent / "sql" / "enrich_report.sql").read_text("utf-8")
 
 
@@ -106,7 +107,8 @@ def process_report(conn: psycopg.Connection, report: Report, rule: Rule) -> Resu
     is_duplicate = case_id is not None
 
     if case_id is None:
-        case_id = uuid.uuid4()
+        # Derived from the report that opened it, so replaying history yields the same ids.
+        case_id = uuid.uuid5(CASE_NAMESPACE, report.event_id)
         conn.execute(
             """
             INSERT INTO ops.cases (case_id, category, authority, status, centroid,

@@ -12,6 +12,7 @@ import pytest
 
 from pomorie.processing.consumer import Processor, Runner
 from pomorie.processing.ledger import accrue_pending_rewards
+from pomorie.processing.reports import CASE_NAMESPACE
 
 pytestmark = pytest.mark.integration
 
@@ -83,6 +84,8 @@ def test_report_creates_routed_enriched_case(
     ).fetchone() or (None, None, None)
     assert authority == "traffic_police"
     assert sla_due == T0 + timedelta(hours=4)
+    # Case ids derive from the opening report, so a replay rebuilds identical cases.
+    assert case_of(conn, event) == str(uuid.uuid5(CASE_NAMESPACE, event["event_id"]))
     assert settlement == "Поморие"
 
 
