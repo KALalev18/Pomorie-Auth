@@ -1,0 +1,9 @@
+{
+  "identities": [
+    {
+      "name": "pomorie-local",
+      "credentials": [{ "accessKey": "pomorie-local", "secretKey": "pomorie-local-secret" }],
+      "actions": ["Admin", "Read", "Write", "List", "Tagging"]
+    }
+  ]
+}
