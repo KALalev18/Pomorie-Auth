@@ -1,0 +1,108 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: Lint and type-check
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          version: "0.13.x"
+      - run: uv sync --frozen
+      - run: uv run ruff check .
+      - run: uv run ruff format --check .
+      - run: uv run mypy
+      - name: SQLFluff (dbt models and tests)
+        run: uv run sqlfluff lint dbt/models dbt/tests
+      - name: SQLFluff (processor queries, psycopg placeholders)
+        working-directory: src/pomorie/processing/sql
+        run: uv run sqlfluff lint . --dialect postgres
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+      - name: App lint and type-check
+        working-directory: app
+        run: |
+          npm ci
+          npx eslint .
+          npx tsc -b
+
+  contracts:
+    name: Data contract compatibility
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@v5
+        with:
+          version: "0.13.x"
+      - run: uv sync --frozen
+      - name: Fail on breaking changes to published event schemas
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            base="origin/${{ github.base_ref }}"
+          else
+            base="${{ github.event.before }}"
+          fi
+          if [ -z "$base" ] || [ "$base" = "0000000000000000000000000000000000000000" ]; then
+            echo "No base commit to compare against"; exit 0
+          fi
+          uv run python -m pomorie.contracts.compat --base-ref "$base"
+
+  test:
+    name: Tests and dbt build
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          version: "0.13.x"
+      - run: uv sync --frozen
+      - name: Start Postgres/PostGIS, Redpanda and SeaweedFS
+        run: docker compose up -d --wait postgres redpanda seaweedfs
+      - name: Migrate, load reference data, create topics
+        run: |
+          uv run python -m pomorie.db migrate
+          uv run python -m pomorie.reference.load
+          uv run python -m pomorie.kafka
+      - name: Unit and integration tests
+        run: uv run pytest -q
+      - name: Seed one week of synthetic data through the real pipeline
+        run: |
+          uv run python -m pomorie.processing.consumer > processor.log 2>&1 &
+          uv run python -m pomorie.demo --start 2026-07-06 --days 7 --timeout 300
+      - name: dbt build (models, snapshot, data tests)
+        working-directory: dbt
+        env:
+          DBT_PROFILES_DIR: .
+        run: |
+          uv run dbt build
+          uv run dbt source freshness
+      - name: Reconcile the ledger for the seeded week
+        run: |
+          for d in $(seq 0 30); do
+            day=$(date -d "2026-07-06 + $d day" +%F)
+            uv run python -m pomorie.reconciliation "$day"
+          done
+      - name: Processor log
+        if: always()
+        run: tail -n 50 processor.log || true
+
+  image:
+    name: Docker image
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t pomorie-platform:ci .
