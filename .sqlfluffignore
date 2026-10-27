@@ -1,0 +1,3 @@
+# The jinja templater does not know dbt's {% snapshot %} block.
+dbt/snapshots/
+dbt/target/

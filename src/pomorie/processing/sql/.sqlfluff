@@ -1,0 +1,6 @@
+[sqlfluff]
+# psycopg named parameters: %(name)s
+templater = placeholder
+
+[sqlfluff:templater:placeholder]
+param_style = pyformat

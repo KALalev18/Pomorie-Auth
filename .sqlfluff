@@ -1,0 +1,22 @@
+[sqlfluff]
+dialect = postgres
+templater = jinja
+max_line_length = 110
+# Explicit join types and aliases are enforced; layout follows the dbt style guide.
+exclude_rules = ambiguous.column_count, structure.column_order
+
+[sqlfluff:templater:jinja]
+apply_dbt_builtins = True
+load_macros_from_path = dbt/macros
+
+[sqlfluff:templater:jinja:context]
+pseudonym_key = local-demo-pseudonym-key
+
+[sqlfluff:indentation]
+tab_space_size = 4
+
+[sqlfluff:rules:capitalisation.keywords]
+capitalisation_policy = lower
+
+[sqlfluff:rules:capitalisation.functions]
+extended_capitalisation_policy = lower
