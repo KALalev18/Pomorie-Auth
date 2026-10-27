@@ -7,6 +7,8 @@ license = "MIT"
 requires-python = ">=3.12,<3.13"
 dependencies = [
     "jsonschema[format-nongpl]>=4.23",
+    "psycopg[binary]>=3.2",
+    "pydantic-settings>=2.5",
     "shapely>=2.0",
 ]
 
@@ -42,3 +44,4 @@ ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+markers = ["integration: needs the docker compose services (Postgres, Redpanda, S3)"]
