@@ -13,18 +13,16 @@ from __future__ import annotations
 
 import argparse
 import json
-import urllib.parse
-import urllib.request
 from pathlib import Path
 from typing import Any
 
 from shapely.geometry import LineString, MultiPolygon, Polygon, mapping
 from shapely.ops import polygonize, unary_union
 
+from pomorie.reference import overpass
+from pomorie.reference.overpass import ATTRIBUTION
+
 RELATION_ID = 1937060
-OVERPASS_URL = "https://overpass-api.de/api/interpreter"
-USER_AGENT = "pomorie-data-platform/0.1 (portfolio project; boundary download)"
-ATTRIBUTION = "© OpenStreetMap contributors, available under the Open Database Licence (ODbL)"
 
 # ~50 m at Pomorie's latitude; plenty for drawing the boundary in the app.
 APP_SIMPLIFY_TOLERANCE_DEG = 0.0005
@@ -36,12 +34,7 @@ APP_PATH = REPO_ROOT / "app" / "public" / "pomorie_boundary.geojson"
 
 
 def fetch_relation(relation_id: int = RELATION_ID) -> dict[str, Any]:
-    query = f"[out:json][timeout:60];relation({relation_id});out geom;"
-    body = urllib.parse.urlencode({"data": query}).encode()
-    request = urllib.request.Request(OVERPASS_URL, data=body, headers={"User-Agent": USER_AGENT})
-    with urllib.request.urlopen(request, timeout=90) as response:
-        result: dict[str, Any] = json.load(response)
-    return result
+    return overpass.query(f"[out:json][timeout:60];relation({relation_id});out geom;")
 
 
 def relation_to_polygon(overpass: dict[str, Any], relation_id: int = RELATION_ID) -> MultiPolygon:
