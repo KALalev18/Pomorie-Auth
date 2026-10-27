@@ -10,6 +10,8 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
+import subprocess
 import time
 from datetime import UTC, date, datetime, timedelta
 
@@ -18,6 +20,7 @@ from pomorie.evaluation import evaluate
 from pomorie.generator.run import publish_days
 from pomorie.kafka import ensure_topics, make_producer
 from pomorie.processing.ledger import accrue_pending_rewards
+from pomorie.reference.paths import REPO_ROOT
 from pomorie.simulation.authorities import simulate
 
 
@@ -70,6 +73,16 @@ def main() -> None:
         accrue_pending_rewards(conn)
         conn.commit()
         print(json.dumps(evaluate(conn), indent=2, default=str))
+
+    # Build the warehouse now, so the dashboard has data without waiting for the hourly
+    # Dagster schedule.
+    subprocess.run(
+        ["dbt", "build", "--quiet"],
+        cwd=REPO_ROOT / "dbt",
+        env={**os.environ, "DBT_PROFILES_DIR": "."},
+        check=True,
+    )
+    print("warehouse built (dbt build)")
     print(f"demo seeded in {time.monotonic() - started:.0f} s")
 
 
