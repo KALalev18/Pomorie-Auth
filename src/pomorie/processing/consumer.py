@@ -34,6 +34,7 @@ from pomorie.processing.validation import BoundaryCheck, Report, semantic_errors
 log = logging.getLogger("pomorie.processor")
 
 MAX_ATTEMPTS = 5  # then the event is parked in the dead-letter table so the stream moves on
+BATCH_WAIT_S = 0.05  # how long to wait for a batch to fill once the first message arrived
 
 
 @dataclass
@@ -225,7 +226,13 @@ def run(stop_after_idle_s: float | None = None, batch_size: int = 500) -> None:
         runner = Runner(conn)
         idle_since = time.monotonic()
         while running:
-            messages = consumer.consume(num_messages=batch_size, timeout=1.0)
+            # Block only for the first message, then take what is already waiting (up to
+            # 50 ms more). Under load batches fill up; at low traffic nothing waits for a
+            # batch to fill, so latency stays close to the processing time.
+            first = consumer.poll(1.0)
+            messages = [] if first is None else [first]
+            if first is not None:
+                messages += consumer.consume(num_messages=batch_size - 1, timeout=BATCH_WAIT_S)
             batch = []
             for msg in messages:
                 error = msg.error()
