@@ -50,11 +50,13 @@ services:
       interval: 3s
       retries: 30
 
+  # Optional topic browser: docker compose --profile tools up -d redpanda-console
   redpanda-console:
     image: redpandadata/console:v2.7.2
+    profiles: ["tools"]
     environment:
       KAFKA_BROKERS: redpanda:9092
-    ports: ["8080:8080"]
+    ports: ["${REDPANDA_CONSOLE_PORT:-8080}:8080"]
     depends_on:
       redpanda: { condition: service_healthy }
 

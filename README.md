@@ -277,7 +277,7 @@ docker compose run --rm demo         # seed 3 months of synthetic history (about
 | City dashboard | http://localhost:8501 |
 | Dagster (assets, lineage, runs) | http://localhost:3030 |
 | API docs (OpenAPI) | http://localhost:8000/docs |
-| Redpanda console (topics, messages) | http://localhost:8080 (`docker compose up -d redpanda-console`) |
+| Redpanda console (topics, messages) | http://localhost:8080 (`docker compose --profile tools up -d redpanda-console`) |
 
 Settings come from environment variables with local defaults; see [`.env.example`](.env.example). Postgres listens on host port 55432 to avoid clashing with a local Postgres.
 
