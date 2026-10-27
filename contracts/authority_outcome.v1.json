@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pomorie-reports.example/contracts/authority_outcome.v1.json",
+  "title": "authority.outcome v1",
+  "description": "An authority decided on a routed case. In this project the authorities are simulated; nothing is sent to real police or municipality systems.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "event_id", "occurred_at", "case_id", "authority", "outcome"],
+  "properties": {
+    "schema": { "const": "authority.outcome/1" },
+    "event_id": { "type": "string", "format": "uuid" },
+    "occurred_at": { "type": "string", "format": "date-time" },
+    "case_id": { "type": "string", "format": "uuid" },
+    "authority": {
+      "type": "string",
+      "enum": [
+        "traffic_police",
+        "police",
+        "municipality_cleanliness",
+        "municipality_infrastructure",
+        "municipality_environment"
+      ]
+    },
+    "outcome": {
+      "type": "string",
+      "enum": ["rejected", "resolved", "fine_issued", "fine_paid"]
+    },
+    "fine_id": { "type": "string", "format": "uuid" },
+    "amount_cents": { "type": "integer", "minimum": 1 },
+    "currency": { "const": "EUR" }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "outcome": { "enum": ["fine_issued", "fine_paid"] } } },
+      "then": { "required": ["fine_id", "amount_cents", "currency"] }
+    }
+  ]
+}

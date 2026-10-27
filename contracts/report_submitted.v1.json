@@ -1,0 +1,83 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pomorie-reports.example/contracts/report_submitted.v1.json",
+  "title": "report.submitted v1",
+  "description": "A resident submitted a report. Produced by the API to topic reports.submitted.v1. Contains no direct personal data: reporter_id is a random UUID whose identity lives in a separate store, and licence plates are HMAC-hashed before the event is produced.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "event_id",
+    "occurred_at",
+    "received_at",
+    "reporter_id",
+    "category",
+    "location"
+  ],
+  "properties": {
+    "schema": { "const": "report.submitted/1" },
+    "event_id": {
+      "description": "Idempotency key. Re-sending the same event_id never creates a second report.",
+      "type": "string",
+      "format": "uuid"
+    },
+    "occurred_at": {
+      "description": "When the resident saw the issue (client clock, may be wrong).",
+      "type": "string",
+      "format": "date-time"
+    },
+    "received_at": {
+      "description": "When the API accepted the report (server clock).",
+      "type": "string",
+      "format": "date-time"
+    },
+    "reporter_id": { "type": "string", "format": "uuid" },
+    "category": {
+      "type": "string",
+      "enum": [
+        "illegal_parking",
+        "littering",
+        "illegal_dumping",
+        "broken_infrastructure",
+        "street_lighting",
+        "noise",
+        "damaged_greenery",
+        "abandoned_vehicle"
+      ]
+    },
+    "location": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["lat", "lon"],
+      "properties": {
+        "lat": { "type": "number", "minimum": -90, "maximum": 90 },
+        "lon": { "type": "number", "minimum": -180, "maximum": 180 },
+        "accuracy_m": {
+          "description": "GPS accuracy radius reported by the device.",
+          "type": "number",
+          "minimum": 0
+        }
+      }
+    },
+    "description": { "type": "string", "maxLength": 1000 },
+    "photo_keys": {
+      "description": "Object-storage keys of EXIF-stripped photos. Never the image bytes.",
+      "type": "array",
+      "maxItems": 5,
+      "items": { "type": "string", "pattern": "^photos/[0-9a-f-]{36}/[0-9a-f]{32}\\.jpg$" }
+    },
+    "plate_hash": {
+      "description": "HMAC-SHA256 of the normalised licence plate, for parking/vehicle reports.",
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "client": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "app_version": { "type": "string", "maxLength": 32 },
+        "platform": { "type": "string", "enum": ["web", "android", "ios", "generator"] }
+      }
+    }
+  }
+}
