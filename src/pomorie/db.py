@@ -11,6 +11,7 @@ import time
 from pathlib import Path
 
 import psycopg
+from psycopg import sql
 
 from pomorie.config import get_settings
 
@@ -57,12 +58,35 @@ def migrate(dsn: str | None = None) -> list[str]:
     return applied_now
 
 
+def ensure_dashboard_login(dsn: str | None = None) -> None:
+    """Login role for the dashboard, member of analytics_reader; password from the env."""
+    settings = get_settings()
+    with connect(dsn, autocommit=True) as conn:
+        exists = conn.execute(
+            "SELECT 1 FROM pg_roles WHERE rolname = %s", [settings.dashboard_db_user]
+        ).fetchone()
+        verb = "ALTER" if exists else "CREATE"
+        conn.execute(
+            sql.SQL("{} ROLE {} LOGIN PASSWORD {} IN ROLE analytics_reader").format(
+                sql.SQL(verb),
+                sql.Identifier(settings.dashboard_db_user),
+                sql.Literal(settings.dashboard_db_password),
+            )
+            if verb == "CREATE"
+            else sql.SQL("ALTER ROLE {} LOGIN PASSWORD {}").format(
+                sql.Identifier(settings.dashboard_db_user),
+                sql.Literal(settings.dashboard_db_password),
+            )
+        )
+
+
 def main() -> int:
     if sys.argv[1:] != ["migrate"]:
         print("usage: python -m pomorie.db migrate")
         return 2
     wait_for_db()
     applied = migrate()
+    ensure_dashboard_login()
     print(f"applied {len(applied)} migration(s): {', '.join(applied) or 'none pending'}")
     return 0
 

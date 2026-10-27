@@ -16,6 +16,10 @@ class Settings(BaseSettings):
     postgres_password: str = "pomorie"
     postgres_db: str = "pomorie"
 
+    # Read-only login used by the dashboard (member of analytics_reader).
+    dashboard_db_user: str = "dashboard"
+    dashboard_db_password: str = "dashboard-local"
+
     kafka_bootstrap: str = "localhost:19092"
     reports_topic: str = "reports.submitted.v1"
     outcomes_topic: str = "authority.outcomes.v1"
@@ -32,6 +36,13 @@ class Settings(BaseSettings):
     # Shared token for the manual-review endpoints. A real deployment would use the
     # municipality's identity provider (OIDC) with a reviewer role instead.
     reviewer_token: str = "local-demo-reviewer-token"
+
+    @property
+    def dashboard_dsn(self) -> str:
+        return (
+            f"postgresql://{self.dashboard_db_user}:{self.dashboard_db_password}"
+            f"@{self.postgres_host}:{self.postgres_port}/{self.postgres_db}"
+        )
 
     @property
     def postgres_dsn(self) -> str:
