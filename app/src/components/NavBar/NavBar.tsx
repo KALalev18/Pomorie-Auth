@@ -92,7 +92,7 @@ export default function NavBar({ user, onAboutUs, onReports, onSignIn, onSignOut
   return (
     <header className="absolute inset-x-0 top-0 z-30">
       {/* frosted glass bar */}
-      <nav className="mx-3 mt-3 flex items-center justify-between rounded-2xl border border-white/20 bg-white/10 px-4 py-2.5 shadow-lg backdrop-blur-md">
+      <nav className="mx-3 mt-3 flex items-center justify-between rounded-2xl border border-white/15 bg-slate-900/75 px-4 py-2.5 shadow-lg backdrop-blur-md">
 
         {/* ── left: logo ── */}
         <div className="flex items-center gap-2 select-none">
