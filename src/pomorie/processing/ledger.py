@@ -17,7 +17,7 @@ from datetime import datetime
 import psycopg
 
 ELIGIBLE_FINE_SQL = """
-SELECT f.amount_cents, r.reward_share_bp, f.case_id,
+SELECT f.amount_cents, r.reward_share_bp, f.case_id, f.paid_at,
        (SELECT rep.reporter_id FROM ops.reports rep
          WHERE rep.case_id = f.case_id
            AND (cardinality(rep.fraud_flags) = 0 OR c.review_decision = 'approved')
@@ -41,7 +41,7 @@ def accrue_reward(conn: psycopg.Connection, fine_id: uuid.UUID) -> uuid.UUID | N
     row = conn.execute(ELIGIBLE_FINE_SQL, [fine_id]).fetchone()
     if row is None:
         return None
-    fine_cents, share_bp, case_id, reporter_id = row
+    fine_cents, share_bp, case_id, paid_at, reporter_id = row
     amount = reward_cents(fine_cents, share_bp)
     if amount == 0 or reporter_id is None:
         return None
@@ -53,10 +53,18 @@ def accrue_reward(conn: psycopg.Connection, fine_id: uuid.UUID) -> uuid.UUID | N
         [account, reporter_id],
     )
     inserted = conn.execute(
-        "INSERT INTO ledger.transactions (txn_id, kind, case_id, fine_id, memo)"
-        " VALUES (%s, 'reward_accrual', %s, %s, %s)"
+        # Dated by event time (when the fine was paid), like the rest of the pipeline, so
+        # replayed history produces the same ledger as live processing would have.
+        "INSERT INTO ledger.transactions (txn_id, kind, case_id, fine_id, memo, created_at)"
+        " VALUES (%s, 'reward_accrual', %s, %s, %s, %s)"
         " ON CONFLICT (fine_id) WHERE kind = 'reward_accrual' DO NOTHING RETURNING txn_id",
-        [uuid.uuid4(), case_id, fine_id, f"{share_bp / 100:g}% of {fine_cents / 100:.2f} EUR"],
+        [
+            uuid.uuid4(),
+            case_id,
+            fine_id,
+            f"{share_bp / 100:g}% of {fine_cents / 100:.2f} EUR",
+            paid_at,
+        ],
     ).fetchone()
     if inserted is None:
         return None  # already accrued
