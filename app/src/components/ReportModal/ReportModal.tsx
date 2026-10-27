@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
+import { getCategoryRouting, type CategoryRouting } from '../../api';
 import { useForm } from '../../hooks/useForm';
 import {
+  AUTHORITY_LABELS,
   MAX_PHOTOS,
   PLATE_CATEGORIES,
   REPORT_CATEGORIES,
@@ -20,6 +22,25 @@ export default function ReportModal({ isOpen, location, onClose, onSubmit }: Rep
   const [photos, setPhotos] = useState<File[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [routing, setRouting] = useState<Record<string, CategoryRouting>>({});
+
+  /* load today's routing rules once, so the reporter sees who will handle the report */
+  useEffect(() => {
+    if (!isOpen || Object.keys(routing).length) return;
+    let cancelled = false;
+    getCategoryRouting()
+      .then((rules) => {
+        if (!cancelled) setRouting(Object.fromEntries(rules.map((r) => [r.category, r])));
+      })
+      .catch(() => {
+        /* the hint is optional; the report can still be sent */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, routing]);
+
+  const route = routing[values.category];
 
   /* focus first field when modal opens */
   useEffect(() => {
@@ -116,14 +137,28 @@ export default function ReportModal({ isOpen, location, onClose, onSubmit }: Rep
               value={values.category}
               onChange={handleChange}
               required
-              className={inputClass}
+              className={`${inputClass} [color-scheme:dark]`}
             >
-              <option value="" disabled>Изберете категория…</option>
+              <option value="" disabled className={optionClass}>Изберете категория…</option>
               {REPORT_CATEGORIES.map(({ value, label }) => (
-                <option key={value} value={value}>{label}</option>
+                <option key={value} value={value} className={optionClass}>{label}</option>
               ))}
             </select>
+            {route && (
+              <p className="text-[11px] text-white/60">
+                Насочва се към:{' '}
+                <span className="font-semibold text-white">
+                  {AUTHORITY_LABELS[route.authority] ?? route.authority}
+                </span>{' '}
+                · срок за реакция {route.sla_hours} ч
+              </p>
+            )}
           </Field>
+
+          <p className="rounded-xl border border-red-400/30 bg-red-500/10 px-3 py-2 text-[11px] text-red-100">
+            При спешен случай или опасност за живота звъннете на{' '}
+            <a href="tel:112" className="font-bold underline">112</a>. Докладите тук не са за спешни случаи.
+          </p>
 
           <Field label="Описание" htmlFor="description">
             <textarea
@@ -202,6 +237,9 @@ export default function ReportModal({ isOpen, location, onClose, onSubmit }: Rep
 
 const inputClass =
   'w-full rounded-xl border border-white/20 bg-white/10 px-3 py-2.5 text-xs text-white placeholder:text-white/30 focus:border-sky-400/60 focus:outline-none focus:ring-2 focus:ring-sky-400/30 transition';
+
+/* the native option list ignores the translucent input background, so give it a solid one */
+const optionClass = 'bg-slate-900 text-white';
 
 function Field({
   label,

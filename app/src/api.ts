@@ -61,6 +61,18 @@ export async function submitReport(
   return body.event_id;
 }
 
+export interface CategoryRouting {
+  category: string;
+  authority: string;
+  sla_hours: number;
+}
+
+/** Today's routing rules, read from the same versioned table the stream processor uses. */
+export async function getCategoryRouting(): Promise<CategoryRouting[]> {
+  const response = await fetch(`${API_URL}/categories`);
+  return (await (await check(response)).json()) as CategoryRouting[];
+}
+
 export async function getReportStatus(eventId: string): Promise<ReportStatus> {
   const response = await fetch(`${API_URL}/reports/${eventId}`);
   return (await (await check(response)).json()) as ReportStatus;

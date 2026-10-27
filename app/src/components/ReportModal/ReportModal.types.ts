@@ -25,6 +25,15 @@ export const REPORT_CATEGORIES = [
   { value: 'abandoned_vehicle', label: 'Изоставен автомобил' },
 ] as const;
 
+/** Values must match the authority enum in contracts/authority_outcome.v1.json. */
+export const AUTHORITY_LABELS: Record<string, string> = {
+  traffic_police: 'Пътна полиция',
+  police: 'Полиция',
+  municipality_cleanliness: 'Община: чистота',
+  municipality_infrastructure: 'Община: инфраструктура',
+  municipality_environment: 'Община: екология',
+};
+
 /** Categories where a licence plate helps the authority (hashed by the API, never stored). */
 export const PLATE_CATEGORIES = new Set(['illegal_parking', 'abandoned_vehicle']);
 

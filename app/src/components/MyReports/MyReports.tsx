@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { getReportStatus, type ReportStatus } from '../../api';
-import { REPORT_CATEGORIES } from '../ReportModal/ReportModal.types';
+import { AUTHORITY_LABELS, REPORT_CATEGORIES } from '../ReportModal/ReportModal.types';
 
 export interface SubmittedReport {
   eventId: string;
@@ -17,14 +17,6 @@ const STATUS_LABELS: Record<ReportStatus['status'], string> = {
   resolved: 'Решен',
   fined: 'Наложена глоба',
   paid: 'Глобата е платена',
-};
-
-const AUTHORITY_LABELS: Record<string, string> = {
-  traffic_police: 'Пътна полиция',
-  police: 'Полиция',
-  municipality_cleanliness: 'Община: чистота',
-  municipality_infrastructure: 'Община: инфраструктура',
-  municipality_environment: 'Община: екология',
 };
 
 function categoryLabel(value: string): string {
